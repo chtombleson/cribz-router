@@ -10,6 +10,14 @@ try {
         echo "Hello\n";
     });
 
+    Router::get('/hi/:name', function($request, $params) {
+        echo "Hello, " . $params->uri->name . "\n";
+    });
+
+    Router::post('/test', function($request, $params) {
+        print_r($params->post);
+    });
+
     Router::run();
 } catch (RouterException $e) {
     echo $e->getMessage() . "\n";

@@ -221,30 +221,34 @@ class Router {
             throw new RouterException("Cannot run in CLI mode when not using php cli interface");
         }
 
+        $argc = $_SERVER['argc'];
+        $argv = $_SERVER['argv'];
+
         if ($argc < 3 || $argv[1] == '--help') {
             echo "Useage: " . $argv[0] . " <uri> <method> [data]\n";
             echo "\turi: Uri to run\n";
             echo "\tmethod: HTTP method to use (DELETE, GET, HEAD, OPTIONS, POST, PUT)\n";
             echo "\tdata: GET or POST data eg. name=hello\n";
+            exit;
         }
 
         $uri = $argv[1];
         $method = strtolower($argv[2]);
         $data = array();
-
-        if (!self::exists($method, $uri)) {
-            throw new RouterException("URI: " . $uri . " is not defined for " . strtoupper($method) . " method");
-        }
+        $params = new \stdClass();
 
         if ($argc > 3) {
             for ($i = 3; $i < $argc; $i++) {
-                if (preg_match('#([a-zA-z0-9])=(.+)#', $argv[($i - 1)], $match)) {
+                if (preg_match('#([a-zA-z0-9]+)=(.+)#', $argv[$i], $match)) {
                     $data[$match[1]] = $match[2];
                 }
             }
         }
 
-        $params->{strtolower($method)} = (object) $data;
+        if (!empty($data)) {
+            $params->{$method} = (object) $data;
+        }
+
         $request = (object) array(
             'request_method'    => strtoupper($method),
             'request_uri'       => $uri,
@@ -254,10 +258,25 @@ class Router {
             'https'             => false,
         );
 
-        if (is_array(self::$routes[$method][$uri])) {
-            return call_user_func_array(self::$routes[$method][$uri], array($request, $params));
+        if (!empty(self::$routes[$method])) {
+            foreach (self::$routes[$method] as $url => $function) {
+                $muri = preg_replace('#:([a-z A-Z 0-9]+)#', '(.+)', $url);
+
+                if (preg_match('#^' . $muri . '#', $uri)) {
+                    $params->uri = self::parseUri($url, $uri);
+
+                    if (is_array(self::$routes[$method][$url])) {
+                        return call_user_func_array(self::$routes[$method][$url], array($request, $params));
+                    } else {
+                        $func = self::$routes[$method][$url];
+                        return $func($request, $params);
+                    }
+                }
+            }
+
+            throw new RouterException("No route found for: " . strtoupper($method) . ", " . $uri, 404);
         } else {
-            return self::$routes[$method][$uri]($request, $params);
+            throw new RouterException("No routes have been defined", 500);
         }
     }
 
@@ -277,15 +296,16 @@ class Router {
 
         if (!empty(self::$routes[$rmethod])) {
             foreach (self::$routes[$rmethod] as $uri => $function) {
-                $muri = preg_replace('#:([a-z A-Z 0-9])#', '(.+)', $uri);
+                $muri = preg_replace('#:([a-z A-Z 0-9]+)#', '(.+)', $uri);
 
                 if (preg_match('#^' . $muri . '#', $ruri)) {
-                    $params->uri = self::$parseUri($uri, $ruri);
+                    $params->uri = self::parseUri($url, $uri);
 
                     if (is_array(self::$routes[$rmethod][$uri])) {
                         return call_user_func_array(self::$routes[$rmethod][$uri], array($request, $params));
                     } else {
-                        return self::$routes[$rmethod][$uri]($request, $params);
+                        $func = self::$routes[$rmethod][$uri];
+                        return $func($request, $params);
                     }
                 }
             }
@@ -357,7 +377,7 @@ class Router {
         preg_match_all('#:([^/]+|.+)#', $routeuri, $names);
         $reguri = preg_replace('#:([^/]+|.+)#', '(.+)', $routeuri);
         preg_match('#^' . $reguri . '$#', $requesturi, $values);
-        $params = new stdClass();
+        $params = new \stdClass();
 
         if (!empty($names) && !empty($values)) {
             foreach ($names[1] as $key => $name) {
@@ -412,6 +432,6 @@ class Router {
             throw new RouterException("Callback function is not callable");
         }
 
-        self::$routes[strtolower($method)][$uri] &= $function;
+        self::$routes[strtolower($method)][$uri] = $function;
     }
 }
