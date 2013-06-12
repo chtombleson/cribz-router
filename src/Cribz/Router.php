@@ -262,8 +262,8 @@ class Router {
             foreach (self::$routes[$method] as $url => $function) {
                 $muri = preg_replace('#:([a-z A-Z 0-9]+)#', '(.+)', $url);
 
-                if (preg_match('#^' . $muri . '#', $uri)) {
-                    $params->uri = self::parseUri($url, $uri);
+                if (preg_match('#^' . $muri . '$#', $uri)) {
+                    $params->uri = self::parseUri($url, $ruri);
 
                     if (is_array(self::$routes[$method][$url])) {
                         return call_user_func_array(self::$routes[$method][$url], array($request, $params));
@@ -274,7 +274,7 @@ class Router {
                 }
             }
 
-            throw new RouterException("No route found for: " . strtoupper($method) . ", " . $uri, 404);
+            throw new RouterException("No route found for: " . strtoupper($method) . ", " . $url, 404);
         } else {
             throw new RouterException("No routes have been defined", 500);
         }
@@ -298,8 +298,8 @@ class Router {
             foreach (self::$routes[$rmethod] as $uri => $function) {
                 $muri = preg_replace('#:([a-z A-Z 0-9]+)#', '(.+)', $uri);
 
-                if (preg_match('#^' . $muri . '#', $ruri)) {
-                    $params->uri = self::parseUri($url, $uri);
+                if (preg_match('#^' . $muri . '$#', $ruri)) {
+                    $params->uri = self::parseUri($uri, $ruri);
 
                     if (is_array(self::$routes[$rmethod][$uri])) {
                         return call_user_func_array(self::$routes[$rmethod][$uri], array($request, $params));
