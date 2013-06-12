@@ -397,9 +397,9 @@ class Router {
     * @return object with $_GET and $_POST data
     */
     private static function processParams() {
-        $params = new stdClass();
-        $params->get = new stdClass();
-        $params->post = new stdClass();
+        $params = new \stdClass();
+        $params->get = new \stdClass();
+        $params->post = new \stdClass();
 
         foreach ($_GET as $key => $value) {
             $params->get->{$key} = $value;
