@@ -356,7 +356,7 @@ class Router {
             'request_uri'       => $_SERVER['REQUEST_URI'],
             'remote_address'    => $_SERVER['REMOTE_ADDR'],
             'user_agent'        => $_SERVER['HTTP_USER_AGENT'],
-            'http_referer'      => $_SERVER['HTTP_REFERER'],
+            'http_referer'      => empty($_SERVER['HTTP_REFERER']) ? '' : $_SERVER['HTTP_REFERER'],
             'https'             => empty($_SERVER['HTTPS']) ? false : true,
         );
 
