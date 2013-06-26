@@ -6,6 +6,14 @@ use Cribz\Router;
 use Cribz\RouterException;
 
 try {
+    Router::middleware('before', function($request) {
+        echo "Before middleware\n";
+    });
+
+    Router::middleware('after', function($request) {
+        echo "After middleware\n";
+    });
+
     Router::get('/hello', function($request, $params) {
         echo "Hello\n";
     });

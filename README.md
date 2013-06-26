@@ -29,6 +29,9 @@ Set a route for a HTTP Head request.
 **Router::options(string $uri, callback $function)**
 Set a route for a HTTP Options request.
 
+**Router::middleware(string $when[before|after], callback $function)**
+Add a before or after middleware function. These are run in the order added.
+
 **Router::post(string $uri, callback $function)**
 Set a route for a HTTP Post request.
 

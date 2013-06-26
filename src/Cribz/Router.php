@@ -55,6 +55,18 @@ class Router {
     );
 
     /**
+    * Middleware
+    * Used to store middleware info
+    *
+    * @access protected
+    * @var array
+    */
+    protected static $middleware = array(
+        'after'     => array(),
+        'before'    => array(),
+    );
+
+    /**
     * Any
     * Set a route for any HTTP Request Method
     *
@@ -63,7 +75,7 @@ class Router {
     * @access public
     * @param array  $methods    Array of HTTP Methods that can be run on the route
     * @param string $uri        Route uri
-    * @param mixed  $function   Callback function, either an array of anyomous function
+    * @param mixed  $function   Callback function, either an array or anyomous function
     * @throws RouterException
     */
     public static function any($methods, $uri, $function) {
@@ -95,7 +107,7 @@ class Router {
     * @static
     * @access public
     * @param string $uri        Route uri
-    * @param mixed  $function   Callback function, either an array of anyomous function
+    * @param mixed  $function   Callback function, either an array or anyomous function
     * @throws RouterException
     */
     public static function delete($uri, $function) {
@@ -127,7 +139,7 @@ class Router {
     * @static
     * @access public
     * @param string $uri        Route uri
-    * @param mixed  $function   Callback function, either an array of anyomous function
+    * @param mixed  $function   Callback function, either an array or anyomous function
     * @throws RouterException
     */
     public static function get($uri, $function) {
@@ -141,11 +153,35 @@ class Router {
     * @static
     * @access public
     * @param string $uri        Route uri
-    * @param mixed  $function   Callback function, either an array of anyomous function
+    * @param mixed  $function   Callback function, either an array or anyomous function
     * @throws RouterException
     */
     public static function head($uri, $function) {
         self::setRoute('head', $uri, $function);
+    }
+
+    /**
+    * Middleware
+    * Add middleware functions to be run before or after every request
+    *
+    * @static
+    * @access public
+    * @param string $when       When the middleware should be run before or after request
+    * @param mixed  $function   Callback function, either an array or anyomous function
+    * @throws RouterException
+    */
+    public static function middleware($when, $function) {
+        $allowedwhen = array('before', 'after');
+        
+        if (!in_array(strtolower($when), $allowedwhen)) {
+            throw new RouterException("Middleware can only run before or after a request");
+        }
+
+        if (!is_callable($function)) {
+            throw new RouterException("Middleware function is not callable");
+        }
+
+        self::$middleware[strtolower($when)][]  = $function;
     }
 
     /**
@@ -155,7 +191,7 @@ class Router {
     * @static
     * @access public
     * @param string $uri        Route uri
-    * @param mixed  $function   Callback function, either an array of anyomous function
+    * @param mixed  $function   Callback function, either an array or anyomous function
     * @throws RouterException
     */
     public static function options($uri, $function) {
@@ -169,7 +205,7 @@ class Router {
     * @static
     * @access public
     * @param string $uri        Route uri
-    * @param mixed  $function   Callback function, either an array of anyomous function
+    * @param mixed  $function   Callback function, either an array or anyomous function
     * @throws RouterException
     */
     public static function post($uri, $function) {
@@ -183,7 +219,7 @@ class Router {
     * @static
     * @access public
     * @param string $uri        Route uri
-    * @param mixed  $function   Callback function, either an array of anyomous function
+    * @param mixed  $function   Callback function, either an array or anyomous function
     * @throws RouterException
     */
     public static function put($uri, $function) {
@@ -263,14 +299,36 @@ class Router {
                 $muri = preg_replace('#:([a-z A-Z 0-9]+)#', '(.+)', $url);
 
                 if (preg_match('#^' . $muri . '$#', $uri)) {
-                    $params->uri = self::parseUri($url, $ruri);
+                    $params->uri = self::parseUri($url, $uri);
+
+                    if (!empty(self::$middleware['before'])) {
+                        foreach (self::$middleware['before'] as $before) {
+                            if (is_array($before)) {
+                                call_user_func_array($before, array($request));
+                            } else {
+                                $before($request);
+                            }
+                        }
+                    }
 
                     if (is_array(self::$routes[$method][$url])) {
-                        return call_user_func_array(self::$routes[$method][$url], array($request, $params));
+                        $callback = call_user_func_array(self::$routes[$method][$url], array($request, $params));
                     } else {
                         $func = self::$routes[$method][$url];
-                        return $func($request, $params);
+                        $callback =  $func($request, $params);
                     }
+
+                    if (!empty(self::$middleware['after'])) {
+                        foreach (self::$middleware['after'] as $after) {
+                            if (is_array($after)) {
+                                call_user_func_array($after, array($request));
+                            } else {
+                                $after($request);
+                            }
+                        }
+                    }
+
+                    return $callback;
                 }
             }
 
@@ -301,12 +359,34 @@ class Router {
                 if (preg_match('#^' . $muri . '$#', $ruri)) {
                     $params->uri = self::parseUri($uri, $ruri);
 
+                    if (!empty(self::$middleware['before'])) {
+                        foreach (self::$middleware['before'] as $before) {
+                            if (is_array($before)) {
+                                call_user_func_array($before, array($request));
+                            } else {
+                                $before($request);
+                            }
+                        }
+                    }
+
                     if (is_array(self::$routes[$rmethod][$uri])) {
-                        return call_user_func_array(self::$routes[$rmethod][$uri], array($request, $params));
+                        $callback = call_user_func_array(self::$routes[$rmethod][$uri], array($request, $params));
                     } else {
                         $func = self::$routes[$rmethod][$uri];
-                        return $func($request, $params);
+                        $callback = $func($request, $params);
                     }
+
+                    if (!empty(self::$middleware['after'])) {
+                        foreach (self::$middleware['after'] as $after) {
+                            if (is_array($before)) {
+                                call_user_func_array($after, array($request));
+                            } else {
+                                $after($request);
+                            }
+                        }
+                    }
+
+                    return $callback;
                 }
             }
 
@@ -420,7 +500,7 @@ class Router {
     * @access private
     * @param string $method     HTTP Request Method
     * @param string $uri        Route uri
-    * @param mixed  $function   Callback function, either an array of anyomous function
+    * @param mixed  $function   Callback function, either an array or anyomous function
     * @throws RouterException
     */
     private static function setRoute($method, $uri, $function) {
